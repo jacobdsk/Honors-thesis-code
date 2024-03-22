@@ -1,0 +1,26 @@
+
+Call:
+lm(formula = FER ~ STATE + PFML + interact + AGEP + AGESQ + LOGINC, 
+    data = df)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.13529 -0.08068 -0.06698 -0.02025  1.04864 
+
+Coefficients:
+              Estimate Std. Error t value Pr(>|t|)    
+(Intercept) -8.610e-02  5.692e-03 -15.126  < 2e-16 ***
+STATEor     -3.830e-03  8.997e-04  -4.257 2.08e-05 ***
+STATEwa      8.330e-01  2.470e-01   3.373 0.000744 ***
+PFML        -4.880e-03  1.050e-03  -4.645 3.39e-06 ***
+interact    -4.127e-04  1.226e-04  -3.366 0.000763 ***
+AGEP         1.500e-02  3.325e-04  45.119  < 2e-16 ***
+AGESQ       -2.598e-04  4.675e-06 -55.571  < 2e-16 ***
+LOGINC      -4.575e-03  9.202e-05 -49.721  < 2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.2304 on 476636 degrees of freedom
+Multiple R-squared:  0.02885,	Adjusted R-squared:  0.02883 
+F-statistic:  2022 on 7 and 476636 DF,  p-value: < 2.2e-16
+
