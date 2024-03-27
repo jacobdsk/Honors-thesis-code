@@ -92,7 +92,7 @@ setwd("~/Honors-thesis-code/")
 years = seq(7, 22)
 years = years[years != 20]
 state_list = c("co", "wa", "or")
-ratio_v = 0.1
+ratio_v = 1
 file_prep(state_list, ratio_v, years)
 df_did <- create_df(state_list)
 

@@ -47,10 +47,6 @@ file.rename(from = "~/Honors-thesis-code/code/WAeventstudyplot.pdf", to = "~/Hon
 
 
 #fertility rate graphed by state
-fergraph <- df %>%
-  group_by(STATE, YEAR) %>%
-  summarize(avg = mean(FER))
-
 fer_df <- df %>%
   group_by(STATE, YEAR, AGEP, FER) %>%
   mutate(
@@ -79,7 +75,7 @@ number_ticks <- function(n) {function(limits) pretty(limits, n)}
 
 ggplot(data=fer_df, aes(x=YEAR, y=tfr, group = STATE, color = STATE)) +
   geom_line() +
-  ylab("odds of child within 12 months") +
+  ylab("TFR level (1 is one child per woman lifetime)") +
   coord_cartesian(ylim = c(1, 3)) +
   scale_x_continuous(breaks=number_ticks(15)) +
   ggtitle("Fertility rates")
