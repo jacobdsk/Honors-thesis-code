@@ -51,12 +51,36 @@ fergraph <- df %>%
   group_by(STATE, YEAR) %>%
   summarize(avg = mean(FER))
 
+fer_df <- df %>%
+  group_by(STATE, YEAR, AGEP, FER) %>%
+  mutate(
+    num_people_by_age_fer = sum(PWGTP)
+  ) %>%
+  ungroup() %>%
+  group_by(STATE, YEAR, AGEP) %>%
+  mutate(
+    age_fer_ratio = num_people_by_age_fer / sum(PWGTP)
+  ) %>%
+  ungroup() %>%
+  filter(FER == 1) %>%
+  select(STATE, YEAR, AGEP, age_fer_ratio) %>%
+  unique() %>%
+  group_by(STATE, YEAR) %>%
+  mutate(
+    tfr = sum(age_fer_ratio)
+  ) %>%
+  select(STATE, YEAR, tfr) %>%
+  unique() %>%
+  filter(!is.na(tfr))
+
+fergraph <- df %>%
+  group_by()
 number_ticks <- function(n) {function(limits) pretty(limits, n)}
 
-ggplot(data=fergraph, aes(x=YEAR, y=avg, group = STATE, color = STATE)) +
+ggplot(data=fer_df, aes(x=YEAR, y=tfr, group = STATE, color = STATE)) +
   geom_line() +
   ylab("odds of child within 12 months") +
-  coord_cartesian(ylim = c(0, 0.1)) +
+  coord_cartesian(ylim = c(1, 3)) +
   scale_x_continuous(breaks=number_ticks(15)) +
   ggtitle("Fertility rates")
 
