@@ -1,0 +1,194 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(remotes)
+library(ggplot2)
+library(tidyverse)
+library(extrafont)
+library(broom)
+library(modelsummary)
+library(gtsummary)
+library(pixiedust)
+library(kableExtra)
+library(pandoc)
+library(estimatr)
+library(fixest)
+```
+
+```{r, echo = FALSE, include = FALSE}
+#Load the datasets
+infant.df <- read_tsv("~/Honors-thesis-code/NCHS_data/infantnoedu.txt")
+
+infant.df = infant.df %>%
+mutate(st = `State`, births = Births, year = `Year of Death`, dr = `Death Rate`)
+
+infant.df$dr = as.double(infant.df$dr)
+
+
+infant.df <- infant.df %>%
+  filter(is.na(Notes)) %>%
+  filter(st == "New York" | st == "Ohio" | st == "Pennsylvania")
+
+infant.df = infant.df %>%
+  mutate(eligible = ifelse(st == "New York", 1, 0))
+```
+
+
+The first two visualizations are for infant mortality rates by State without any particular filtering. The last two visualizations are specifically for women with education equal to or lower than a high school diploma.
+
+:::{.border style="padding: 10px; border: 1px solid #dee2e6 !important;"}
+```{r, echo = FALSE}
+ggplot(data=infant.df, aes(x=year, y=dr, group = st, color = st)) +
+geom_line() +
+scale_y_continuous("Death Rate") +
+xlab("Year \n (death rate = total deaths x 1000 / total births)")  +
+ggtitle("Infant Mortality Rate by State")+
+theme(axis.line = element_line(colour = "black",
+linetype = "solid")) +
+theme_bw() +
+theme(legend.position="bottom",
+legend.title = element_blank(),
+axis.text =element_text(size=6,face="bold"),
+axis.title =element_text(size=8,family = "Garamond"),
+plot.title = element_text(family = "Garamond", face="bold"),
+panel.border = element_rect(colour = "black", fill = NA, linewidth = 1))
+```
+:::
+
+
+<br>
+
+<br>
+
+
+:::{.border style="padding: 10px; border: 1px solid #dee2e6 !important;"}
+```{r, echo = FALSE}
+#Run regression, white vcov, 2015 omitted year
+model <- feols(dr~i(year,eligible,2015), fixef = c("st", "year"), data = infant.df, vcov = "white")
+model.df = tidy(model)
+allcoef = model.df$term
+
+#Calculate asymptotic 95% confidence intervals and add dummy row for 2015
+model.df = model.df %>%
+  mutate(ymax = estimate + 1.96*std.error) %>% 
+  mutate(ymin = estimate - 1.96*std.error) %>%
+  add_row(estimate = 0, std.error = 0, ymax = 0, ymin = 0, .before = 9) %>%
+  add_column(years = (2007:2021))
+
+
+
+#Event study plot
+ggplot(model.df, aes(x = years, y = estimate)) +
+  scale_y_continuous(labels = function(x) paste0(x)) +
+  geom_hline(yintercept = 0, colour = "#000000", linewidth = 0.75) +  #Line at 0
+  geom_pointrange(aes(ymin = ymin, ymax = ymax, group = rev(estimate)), 
+                  position = position_dodge(width = 1), size = 1, fatten = 1.2,
+    show.legend = T) +  # Ranges for each coefficient
+  geom_errorbar(aes(ymin = ymin, ymax = ymax), width = 0.2, 
+                position = position_dodge(width = 0.9) ) + #Line on whisker ends
+  labs(x="death rate = total deaths x 1000 / total births", y="(95% confidence interval bounds)", 
+       title="New York Event Study of Infant Mortality rate (OH and PA as controls)") +  # Labels
+  theme_bw() +
+  theme(legend.position="bottom",
+    legend.title = element_blank(),
+    axis.text =element_text(size=6,face="bold"),
+    axis.title =element_text(size=8,family = "Garamond"),
+    plot.title = element_text(family = "Garamond", face="bold"),
+    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1))
+```
+:::
+
+
+<br>
+
+<br>
+
+
+```{r, echo = FALSE, include = FALSE}
+infant.df <- read_tsv("~/Honors-thesis-code/NCHS_data/infant.txt")
+
+infant.df = infant.df %>%
+mutate(st = `State`, births = Births, year = `Year of Death`, edu_code = `Mother's Education Code`, deaths = Deaths, edu = `Mother's Education`) %>%
+  select(c(st, births, year, deaths, edu, Notes, edu_code))
+
+
+infant.df <- infant.df %>%
+  filter(is.na(Notes),
+         st == "New York" | st == "Pennsylvania" | st == "Ohio",
+         edu_code == "3" | edu_code == "2" | edu_code == "1",
+         )
+
+infant.df$births = as.double(infant.df$births)
+infant.df$deaths = as.double(infant.df$deaths)
+
+infant.df <- infant.df %>%
+  group_by(year, st) %>%
+  mutate(births_total = sum(births), deaths_total = sum(deaths),
+         dr_total = deaths_total*1000/births_total) %>%
+  filter(edu_code == "3")
+
+infant.df = infant.df %>%
+  mutate(eligible = ifelse(st == "New York", 1, 0))
+```
+
+Visualizations for the education filtered event study
+
+:::{.border style="padding: 10px; border: 1px solid #dee2e6 !important;"}
+```{r, echo = FALSE}
+ggplot(data=infant.df, aes(x=year, y=dr_total, group = st, color = st)) +
+geom_line() +
+scale_y_continuous("Death Rate") +
+xlab("Year \n (death rate = total deaths x 1000 / total births)")  +
+ggtitle("Infant Mortality Rate by State for Mothers with High School Diploma or Lower")+
+theme(axis.line = element_line(colour = "black",
+ linetype = "solid")) +
+theme_bw() +
+theme(legend.position="bottom",
+legend.title = element_blank(),
+axis.text =element_text(size=6,face="bold"),
+axis.title =element_text(size=8,family = "Garamond"),
+plot.title = element_text(family = "Garamond", face="bold"),
+panel.border = element_rect(colour = "black", fill = NA, linewidth = 1))
+```
+:::
+
+<br>
+
+<br>
+
+:::{.border style="padding: 10px; border: 1px solid #dee2e6 !important;"}
+```{r, echo = FALSE}
+#Run regression
+model <- feols(dr_total~i(year,eligible,2015) -1 , fixef = c("st", "year"), data = infant.df, vcov = "white")
+
+model.df = tidy(model)
+allcoef = model.df$term
+
+
+years = (2007:2021)
+#Calculate asymptotic 95% confidence intervals and scale to percentage for plots
+model.df = model.df %>%
+  mutate(ymax = estimate + 1.96*std.error) %>% 
+  mutate(ymin = estimate - 1.96*std.error) %>%
+  add_row(estimate = 0, std.error = 0, ymax = 0, ymin = 0, .before = 9) %>%
+  add_column(years)
+
+#plot
+ggplot(model.df, aes(x = years, y = estimate)) +
+  scale_y_continuous(labels = function(x) paste0(x)) +
+  geom_hline(yintercept = 0, colour = "#000000", linewidth = 0.75) +  #Line at 0
+  geom_pointrange(aes(ymin = ymin, ymax = ymax, group = rev(estimate)), 
+                  position = position_dodge(width = 1), size = 1, fatten = 1.2,
+    show.legend = T) +  # Ranges for each coefficient
+  geom_errorbar(aes(ymin = ymin, ymax = ymax), width = 0.2, 
+                position = position_dodge(width = 0.9) ) + #Line on whisker ends
+  labs(x="Death rate for a year = total deaths in a year x 1000 / total births in a year", y="(95% confidence interval bounds)", 
+       title="New York Event Study of Infant Death Rate for Education at or Less \n than Highschool Diploma (OH and PA as controls)") +  # Labels
+  theme_bw() +
+  theme(legend.position="bottom",
+    legend.title = element_blank(),
+    axis.text =element_text(size=6,face="bold"),
+    axis.title =element_text(size=8,family = "Garamond"),
+    plot.title = element_text(family = "Garamond", face="bold"),
+    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1))
+```
+:::

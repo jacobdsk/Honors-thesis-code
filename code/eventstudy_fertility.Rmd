@@ -1,0 +1,103 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(remotes)
+library(ggplot2)
+library(tidyverse)
+library(extrafont)
+library(broom)
+library(modelsummary)
+library(gtsummary)
+library(pixiedust)
+library(kableExtra)
+library(pandoc)
+library(estimatr)
+library(fixest)
+```
+
+```{r, echo = FALSE, include= FALSE}
+#Read in file and change columns
+natality.df <- read_tsv("~/Honors-thesis-code/NCHS_data/natality2007.txt", show_col_types = FALSE)
+natality.df = natality.df %>%
+mutate(fempop = `Female Population`, st = `State`, age = `Age of Mother 9 Code`, births = Births, year = Year, fer = `Fertility Rate`) %>%
+  filter(`Female Population` != "Not Available") %>%
+  mutate(fempop = as.double(fempop), fer = births/fempop) %>%
+  select(c(fempop, st, age, births, year, fer))
+#TFR calculation
+natality.df_TFR <- natality.df %>%
+  group_by(year, st) %>%
+  mutate(TFR = sum(fer) * 5) %>%
+  select(TFR, year, st) %>%
+  unique() %>%
+  filter(st == "New York" | st == "Ohio" | st == "Pennsylvania")
+
+natality.df_TFR=  natality.df_TFR %>%
+  mutate(eligible = ifelse(st == "New York", 1, 0))
+
+natality.df_TFR$year = as.factor(natality.df_TFR$year)
+```
+
+Visualizations for fertility event study
+
+:::{.border style="padding: 10px; border: 1px solid #dee2e6 !important;"}
+```{r, echo = FALSE}
+#TFR graphs for New York, Ohio and Pennsylvania
+ggplot(data=natality.df_TFR, aes(x=year, y=TFR, group = st, color = st)) +
+geom_line() +
+ylab("TFR level (1 is one child per woman lifetime)") +
+coord_cartesian(ylim = c(1.5, 2.5)) +
+ggtitle("Fertility rates") +
+theme(axis.line = element_line(colour = "black",
+ linetype = "solid")) +
+theme_bw() +
+theme(legend.position="bottom",
+legend.title = element_blank(),
+axis.text =element_text(size=6,face="bold"),
+axis.title =element_text(size=8,family = "Garamond"),
+plot.title = element_text(family = "Garamond", face="bold"),
+panel.border = element_rect(colour = "black", fill = NA, linewidth = 1))
+```
+:::
+
+
+<br>
+
+<br>
+
+
+:::{.border style="padding: 10px; border: 1px solid #dee2e6 !important;"}
+```{r, echo = FALSE}
+#Fix effects regression, white variance estimator, 2015, as omitted year
+model <- feols(TFR~i(year,eligible,2015) - 1, fixef = c("st", "year"), data = natality.df_TFR, vcov = "white")
+model.df = tidy(model)
+allcoef = model.df$term
+
+#Calculate asymptotic 95% confidence intervals and add "empty" row for 2015
+model.df = model.df %>%
+  mutate(ymax = estimate + 1.96*std.error) %>% 
+  mutate(ymin = estimate - 1.96*std.error) %>%
+  add_row(estimate = 0, std.error = 0, ymax = 0, ymin = 0, .before = 9) %>%
+  add_column(years =(2007:2020))
+
+
+
+
+#Event study plot
+ggplot(model.df, aes(x = years, y = estimate)) +
+  scale_y_continuous(labels = function(x) paste0(x)) +
+  geom_hline(yintercept = 0, colour = "#000000", linewidth = 0.75) +  #Line at 0
+  geom_pointrange(aes(ymin = ymin, ymax = ymax, group = rev(estimate)), 
+                  position = position_dodge(width = 1), size = 1, fatten = 1.2,
+    show.legend = T) +  # Ranges for each coefficient
+  geom_errorbar(aes(ymin = ymin, ymax = ymax), width = 0.2, 
+                position = position_dodge(width = 0.9) ) + #Line on whisker ends
+  labs(x="TFR = sum of the probabilities of having a child each year ", y="(95% confidence interval bounds)", 
+       title="New York Event Study of Total Fertility Rate TFR (OH and PA as controls)") +  # Labels
+  theme_bw() +
+  theme(legend.position="bottom",
+    legend.title = element_blank(),
+    axis.text =element_text(size=6,face="bold"),
+    axis.title =element_text(size=8,family = "Garamond"),
+    plot.title = element_text(family = "Garamond", face="bold"),
+    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1))
+```
+:::
